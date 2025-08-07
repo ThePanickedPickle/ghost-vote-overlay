@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ghost Voting Overlay</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #defaultView {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: auto;
+      background-image: url('Default.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    #ghostName {
+      font-size: 32px;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      margin-top: 20px;
+    }
+
+ #votePanel {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('Vote.jpg');
+      background-size: cover;
+      background-position: center;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 0px 20px 20px;
+      overflow-y: auto;
+    }
+
+    .ghostButton {
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid white;
+      color: white;
+      font-size: 20px;
+      padding: 10px 20px;
+      margin: 6px;
+      cursor: pointer;
+      width: 200px;
+    }
+
+    .ghostButton:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    #closeBtn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 30px;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      cursor: pointer;
+      padding: 4px 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="defaultView" onclick="toggleVotePanel(true)">
+      <div id="ghostName">[Loading...]</div>
+    </div>
+
+    <div id="votePanel">
+      <button id="closeBtn" onclick="toggleVotePanel(false)">X</button>
+    </div>
+  </div>
+
+  <script>
+    const ghosts = [
+      "Banshee", "Demon", "Deogen", "Goryo", "Hantu", "Jinn", "Mare",
+      "Moroi", "Myling", "Obake", "Oni", "Onryo", "Phantom", "Poltergeist",
+      "Raiju", "Revenant", "Shade", "Spirit", "Thaye", "The Twins", 
+      "Wraith", "Yokai", "Yurei", "Mimic"
+    ];
+
+    const voteCounts = {};
+    let hasVoted = false;
+
+    function setupVotes() {
+      const panel = document.getElementById("votePanel");
+      ghosts.forEach(ghost => {
+        voteCounts[ghost] = 0;
+        const btn = document.createElement("button");
+        btn.className = "ghostButton";
+        btn.textContent = ghost;
+        btn.onclick = () => castVote(ghost, btn);
+        panel.appendChild(btn);
+      });
+    }
+
+    function castVote(ghost, btn) {
+      if (hasVoted) return;
+      voteCounts[ghost]++;
+      hasVoted = true;
+      btn.disabled = true;
+      btn.textContent = `${ghost} (Voted)`;
+    }
+
+    function toggleVotePanel(show) {
+      document.getElementById("votePanel").style.display = show ? "flex" : "none";
+    }
+
+    function getTopGhost() {
+      return Object.entries(voteCounts).reduce((top, current) => 
+        current[1] > top[1] ? current : top, ["None", -1])[0];
+    }
+
+    function updateGhostName() {
+      document.getElementById("ghostName").textContent = getTopGhost();
+    }
+
+    function resetVotes() {
+      ghosts.forEach(g => voteCounts[g] = 0);
+      hasVoted = false;
+
+      const buttons = document.querySelectorAll(".ghostButton");
+      buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.textContent = btn.textContent.replace(" (Voted)", "");
+      });
+    }
+
+    setupVotes();
+    setInterval(updateGhostName, 3000);
+  
+    async function fetchResetFlag() {
+      try {
+        const response = await fetch('reset.json?_=' + Date.now());
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.reset) {
+          resetVotes();
+          await fetch('reset.json', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reset: false })
+          });
+        }
+      } catch (e) {
+        console.error("Reset check failed:", e);
+      }
+    }
+    setInterval(fetchResetFlag, 5000);
+
+  </script>
+</body>
+</html>
